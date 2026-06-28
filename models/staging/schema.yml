@@ -1,0 +1,50 @@
+﻿version: 2
+
+models:
+  - name: stg_customers
+    description: "Cleaned and standardised customer records."
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier."
+        tests:
+          - not_null
+          - unique
+      - name: email
+        description: "Customer email address (lowercased)."
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: "Cleaned orders from the raw source."
+    columns:
+      - name: order_id
+        description: "Unique order identifier."
+        tests:
+          - not_null
+          - unique
+      - name: status
+        description: "Order status."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [completed, pending, cancelled, returned]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: stg_customers
+              field: customer_id
+
+  - name: stg_payments
+    description: "Cleaned payment transactions."
+    columns:
+      - name: payment_id
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: stg_orders
+              field: order_id

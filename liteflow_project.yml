@@ -1,0 +1,15 @@
+﻿name: jaffle_shop
+version: "1.0.0"
+model-paths: ["models"]
+test-paths: ["tests"]
+profile: jaffle_shop
+platform: databricks
+
+models:
+  jaffle_shop:
+    staging:
+      materialized: view
+    intermediate:
+      materialized: view
+    marts:
+      materialized: table

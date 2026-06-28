@@ -1,0 +1,60 @@
+﻿name: Deploy to prod (main only)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  lint-compile:
+    name: Final Lint & Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - run: liteflow lint
+      - run: liteflow compile
+
+  deploy-prod:
+    name: Deploy to prod
+    needs: lint-compile
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            prod:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_prod
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - name: Generate Asset Bundle
+        run: liteflow bundle generate --env prod
+      - name: Deploy models
+        run: liteflow run --env prod
+      - name: Smoke tests
+        run: liteflow test --env prod

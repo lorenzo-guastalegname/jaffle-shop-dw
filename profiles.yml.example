@@ -1,0 +1,51 @@
+﻿# Copy this file to ~/.liteflow/profiles.yml and fill in your values.
+# NEVER commit profiles.yml â€” it contains credentials.
+
+jaffle_shop:
+  dev:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_dev
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"
+
+  test:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_test
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"
+
+  devprj:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_devprj
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"
+
+  sit:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_sit
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"
+
+  uat:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_uat
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"
+
+  prod:
+    adapter: databricks
+    host: "adb-xxxx.azuredatabricks.net"
+    http_path: "/sql/1.0/warehouses/xxxx"
+    catalog: lf_prod
+    schema: jaffle_shop
+    token: "{{env_var('DATABRICKS_TOKEN')}}"

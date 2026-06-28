@@ -1,0 +1,133 @@
+﻿name: Project Track (devprj -> sit -> uat)
+
+on:
+  push:
+    branches: [integration/project]
+  pull_request:
+    branches: [integration/project]
+
+jobs:
+
+  lint-compile:
+    name: Lint & Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - run: liteflow lint
+      - run: liteflow compile
+
+  deploy-devprj:
+    name: Deploy to devprj
+    needs: lint-compile
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: devprj
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            devprj:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_devprj
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - run: liteflow run --env devprj
+      - run: liteflow test --env devprj
+
+  # Manual gate: SIT sign-off (QA team)
+  deploy-sit:
+    name: Promote to SIT
+    needs: deploy-devprj
+    runs-on: ubuntu-latest
+    environment: sit
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            sit:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_sit
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - run: liteflow run --env sit
+      - run: liteflow test --env sit
+
+  # Manual gate: UAT sign-off (business users)
+  deploy-uat:
+    name: Promote to UAT
+    needs: deploy-sit
+    runs-on: ubuntu-latest
+    environment: uat
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            uat:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_uat
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - run: liteflow run --env uat
+      - run: liteflow test --env uat

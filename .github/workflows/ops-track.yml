@@ -1,0 +1,96 @@
+﻿name: Ops Track (dev -> test)
+
+on:
+  push:
+    branches: [integration/ops]
+  pull_request:
+    branches: [integration/ops]
+
+jobs:
+
+  lint-compile:
+    name: Lint & Compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - run: liteflow lint
+      - run: liteflow compile
+
+  deploy-dev:
+    name: Deploy to dev
+    needs: lint-compile
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            dev:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_dev
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - run: liteflow run --env dev
+      - run: liteflow test --env dev
+
+  # Manual gate: approve in GitHub -> Settings -> Environments -> dev -> test
+  deploy-test:
+    name: Promote to test
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install liteflow
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          python3 -c "
+          import os
+          cfg = '''jaffle_shop:
+            test:
+              adapter: databricks
+              host: {host}
+              http_path: {path}
+              catalog: lf_test
+              schema: jaffle_shop
+              token: \"{{{{env_var(\\"DATABRICKS_TOKEN\\")}}}}\"
+          '''.format(host=os.environ['HOST'], path=os.environ['HTTP_PATH'])
+          open(os.path.expanduser('~/.liteflow/profiles.yml'), 'w').write(cfg)
+          "
+        env:
+          HOST: ${{ secrets.DATABRICKS_HOST }}
+          HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      - run: liteflow run --env test
+      - run: liteflow test --env test

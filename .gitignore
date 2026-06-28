@@ -1,0 +1,20 @@
+﻿# LiteFlow compiled output â€” never commit
+target/
+
+# Credentials â€” NEVER commit
+profiles.yml
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
