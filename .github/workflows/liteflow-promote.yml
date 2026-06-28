@@ -1,0 +1,102 @@
+name: "LiteFlow — Promote"
+
+# Triggered by the LiteFlow UI (CI/CD tab -> Request promotion).
+# Never triggered by a push -- always manual, always gated.
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_env:
+        description: "Source environment  (devprj / sit / dev)"
+        required: true
+        type: string
+      to_env:
+        description: "Target environment  (sit / uat / test)"
+        required: true
+        type: string
+      from_sha:
+        description: "7-char commit SHA to promote"
+        required: true
+        type: string
+      branch:
+        description: "Source branch (integration/ops or integration/project)"
+        required: true
+        type: string
+
+# Required GitHub Environments (Settings -> Environments -> add required reviewers):
+#   sit   -- reviewer approval before SIT deploy
+#   uat   -- reviewer approval before UAT deploy
+#   test  -- reviewer approval before TEST deploy
+
+jobs:
+  promote:
+    name: "Promote ${{ inputs.from_env }} to ${{ inputs.to_env }}"
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.to_env }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.from_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install liteflow sqlfluff
+      - name: Write profiles.yml
+          run: |
+            mkdir -p ~/.liteflow
+            cat > ~/.liteflow/profiles.yml <<'PROFILEEOF'
+            jaffle_shop:
+              dev:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_DEV_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+              test:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_TEST_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+              devprj:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_DEVPRJ_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+              sit:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_SIT_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+              uat:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_UAT_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+              prod:
+                adapter:   databricks
+                host:      ${{ secrets.DATABRICKS_HOST }}
+                http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+                catalog:   ${{ secrets.LF_PROD_CATALOG }}
+                schema:    jaffle_shop
+                token:     ${{ secrets.DATABRICKS_TOKEN }}
+            PROFILEEOF
+      - name: "Run & test in ${{ inputs.to_env }}"
+        run: |
+          liteflow run  --env ${{ inputs.to_env }}
+          liteflow test --env ${{ inputs.to_env }}
+      - name: Tag deployment
+        run: |
+          git config user.email "liteflow-ci@github-actions"
+          git config user.name  "LiteFlow CI"
+          git tag -f "lf/${{ inputs.to_env }}/${{ inputs.from_sha }}"
+          git push -f origin "lf/${{ inputs.to_env }}/${{ inputs.from_sha }}"
