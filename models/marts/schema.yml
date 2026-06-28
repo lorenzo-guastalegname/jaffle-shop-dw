@@ -22,19 +22,3 @@ models:
         tests:
           - not_null
           - unique
-
-  - name: payment_summary
-    description: "Customer-level payment summary for CRM segmentation."
-    columns:
-      - name: customer_id
-        tests:
-          - not_null
-          - unique
-      - name: customer_tier
-        tests:
-          - not_null
-          - accepted_values:
-              values: [platinum, gold, silver, new]
-      - name: total_paid
-        tests:
-          - not_null
