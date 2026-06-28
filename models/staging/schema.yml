@@ -10,7 +10,11 @@ models:
           - not_null
           - unique
       - name: email
-        description: "Customer email address (lowercased)."
+        description: "Customer email address (lowercased, trimmed)."
+        tests:
+          - not_null
+      - name: full_name
+        description: "Display name â€” concatenation of first_name and last_name (trimmed)."
         tests:
           - not_null
 
