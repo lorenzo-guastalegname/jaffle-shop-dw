@@ -1,4 +1,5 @@
 -- Mart: one row per customer with lifetime order and payment stats.
+-- feat(TICK-101): add dw_load_ts audit column.
 with orders as (
     select * from {{ ref('stg_orders') }}
 ),
@@ -31,6 +32,7 @@ select
     t.first_order_date,
     t.most_recent_order_date,
     coalesce(t.number_of_orders, 0) as number_of_orders,
-    coalesce(t.lifetime_value, 0) as lifetime_value
+    coalesce(t.lifetime_value, 0) as lifetime_value,
+    current_timestamp() as dw_load_ts
 from customers as c
 left join order_totals as t on c.customer_id = t.customer_id
