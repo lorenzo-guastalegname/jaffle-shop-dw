@@ -86,7 +86,7 @@ jobs:
               if d.startswith(b'\xef\xbb\xbf'):
                   open(f, 'wb').write(d[3:])
           "
-      - run: liteflow lint
+      - run: sqlfluff lint --dialect sparksql models/
       - run: liteflow compile
       - run: liteflow run  --env prod
       - run: liteflow test --env prod
