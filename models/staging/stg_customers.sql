@@ -1,11 +1,12 @@
 -- Staging: clean and standardise raw customers.
--- feat(TICK-101): add full_name and customer_tier for CRM segmentation project
+-- fix(TICK-042): trim whitespace from names and email
+-- feat(TICK-101): add full_name and customer_tier for CRM segmentation
 select
     customer_id,
-    first_name,
-    last_name,
-    lower(email) as email,
-    concat(first_name, ' ', last_name) as full_name,
+    trim(first_name) as first_name,
+    trim(last_name) as last_name,
+    lower(trim(email)) as email,
+    concat(trim(first_name), ' ', trim(last_name)) as full_name,
     case
         when lifetime_orders >= 10 then 'platinum'
         when lifetime_orders >= 5 then 'gold'
