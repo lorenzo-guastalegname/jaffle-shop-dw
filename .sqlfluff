@@ -1,14 +1,7 @@
 [sqlfluff]
 dialect = sparksql
 templater = jinja
+exclude_rules = LT05, LT12
 
 [sqlfluff:templater:jinja]
 apply_dbt_builtins = true
-
-[sqlfluff:rules:layout.long_lines]
-# Disable line-length enforcement — column expressions are intentionally long
-enabled = False
-
-[sqlfluff:rules:layout.end_of_file]
-# Disable trailing-newline enforcement
-enabled = False
