@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Raw landing-zone tables seeded by Databricks setup script.
+    tables:
+      - name: customers
+        description: Raw customer records from the source system.
+      - name: orders
+        description: Raw order records from the source system.
+      - name: payments
+        description: Raw payment records from the source system.

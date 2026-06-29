@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: Cleaned and standardised customers.
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+      - name: email
+        tests: [not_null]
+
+  - name: stg_orders
+    description: Cleaned and typed orders.
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: status
+        tests:
+          - accepted_values:
+              values: [placed, shipped, completed, return_pending, returned]
+
+  - name: stg_payments
+    description: Cleaned payments.
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]
+
+  - name: customers
+    description: "Mart: one row per customer with lifetime stats."
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+
+  - name: orders
+    description: "Mart: one row per order with customer and payment detail."
+    columns:
+      - name: order_id
+        tests: [not_null, unique]

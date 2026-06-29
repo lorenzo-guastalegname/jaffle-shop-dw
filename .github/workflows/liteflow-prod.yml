@@ -1,0 +1,90 @@
+name: "LiteFlow -- Production Deploy"
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy-prod:
+    name: Deploy to prod (manual gate)
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install LiteFlow
+        run: pip install liteflow
+
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          cat > ~/.liteflow/profiles.yml << 'PROF'
+          jaffle_shop:
+            dev:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_dev
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+            test:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_test
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+            devprj:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_devprj
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+            sit:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_sit
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+            uat:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_uat
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+            prod:
+              adapter: databricks
+              host:      "{{env_var('DATABRICKS_HOST')}}"
+              http_path: "{{env_var('DATABRICKS_HTTP_PATH')}}"
+              catalog:   lf_prod
+              schema:    jaffle_shop
+              token:     "{{env_var('DATABRICKS_TOKEN')}}"
+          PROF
+        env:
+          DATABRICKS_HOST:      ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_TOKEN:     ${{ secrets.DATABRICKS_TOKEN }}
+
+      - name: Strip UTF-8 BOM from SQL files
+        run: |
+          python3 -c "
+          import glob
+          for f in glob.glob('models/**/*.sql', recursive=True):
+              d = open(f, 'rb').read()
+              if d.startswith(b'\xef\xbb\xbf'):
+                  open(f, 'wb').write(d[3:])
+          "
+      - name: Run prod
+        run: liteflow run --env prod
+
+      - name: Test prod
+        run: liteflow test --env prod
