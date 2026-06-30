@@ -17,7 +17,7 @@ models:
       - name: status
         tests:
           - accepted_values:
-              values: [placed, shipped, completed, return_pending, returned]
+              values: [placed, shipped, completed, return_pending, returned, pending, cancelled]
 
   - name: stg_payments
     description: Cleaned payments.
