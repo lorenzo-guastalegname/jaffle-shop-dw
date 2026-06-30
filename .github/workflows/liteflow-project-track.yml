@@ -1,0 +1,255 @@
+name: "LiteFlow — PROJECT track (devprj → sit → uat)"
+
+on:
+  push:
+    branches: ["integration/project"]
+
+# Required GitHub Secrets (repo level):
+#   DATABRICKS_TOKEN, DATABRICKS_HOST, DATABRICKS_HTTP_PATH
+#   LF_DEV_CATALOG, LF_TEST_CATALOG, LF_DEVPRJ_CATALOG,
+#   LF_SIT_CATALOG, LF_UAT_CATALOG, LF_PROD_CATALOG
+#
+# Required GitHub Environments (Settings → Environments):
+#   sit  — add required reviewers
+#   uat  — add required reviewers
+
+jobs:
+  lint-compile:
+    name: "Lint & compile"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install git+https://github.com/lorenzo-guastalegname/liteflow.git sqlfluff
+      - name: Strip UTF-8 BOM from SQL files
+        run: |
+          python3 -c "
+          import glob
+          for f in glob.glob('models/**/*.sql', recursive=True):
+              d = open(f, 'rb').read()
+              if d.startswith(b'\xef\xbb\xbf'):
+                  open(f, 'wb').write(d[3:])
+          "
+      - run: sqlfluff lint --dialect sparksql models/
+      - run: liteflow compile
+
+  deploy-devprj:
+    name: "Deploy → devprj (lf_devprj)"
+    needs: lint-compile
+    runs-on: ubuntu-latest
+    outputs:
+      deployed_sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install git+https://github.com/lorenzo-guastalegname/liteflow.git sqlfluff
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          cat > ~/.liteflow/profiles.yml <<'PROFILEEOF'
+          jaffle_shop:
+            dev:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEV_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            test:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_TEST_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            devprj:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEVPRJ_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            sit:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_SIT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            uat:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_UAT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            prod:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_PROD_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+          PROFILEEOF
+      - id: sha
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      - run: liteflow run  --env devprj
+      - run: liteflow test --env devprj
+      - name: Tag deployment
+        run: |
+          git config user.email "liteflow-ci@github-actions"
+          git config user.name  "LiteFlow CI"
+          git tag -f "lf/devprj/${{ steps.sha.outputs.sha }}"
+          git push -f origin "lf/devprj/${{ steps.sha.outputs.sha }}"
+
+  deploy-sit:
+    name: "Deploy → sit (lf_sit)"
+    needs: deploy-devprj
+    runs-on: ubuntu-latest
+    environment: sit          # ← requires manual approval
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy-devprj.outputs.deployed_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install git+https://github.com/lorenzo-guastalegname/liteflow.git sqlfluff
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          cat > ~/.liteflow/profiles.yml <<'PROFILEEOF'
+          jaffle_shop:
+            dev:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEV_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            test:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_TEST_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            devprj:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEVPRJ_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            sit:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_SIT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            uat:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_UAT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            prod:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_PROD_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+          PROFILEEOF
+      - id: sha
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      - run: liteflow run  --env sit
+      - run: liteflow test --env sit
+      - name: Tag deployment
+        run: |
+          git config user.email "liteflow-ci@github-actions"
+          git config user.name  "LiteFlow CI"
+          git tag -f "lf/sit/${{ steps.sha.outputs.sha }}"
+          git push -f origin "lf/sit/${{ steps.sha.outputs.sha }}"
+
+  deploy-uat:
+    name: "Deploy → uat (lf_uat)"
+    needs: deploy-sit
+    runs-on: ubuntu-latest
+    environment: uat          # ← requires manual approval
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy-sit.outputs.deployed_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install git+https://github.com/lorenzo-guastalegname/liteflow.git sqlfluff
+      - name: Write profiles.yml
+        run: |
+          mkdir -p ~/.liteflow
+          cat > ~/.liteflow/profiles.yml <<'PROFILEEOF'
+          jaffle_shop:
+            dev:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEV_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            test:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_TEST_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            devprj:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_DEVPRJ_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            sit:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_SIT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            uat:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_UAT_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+            prod:
+              adapter:   databricks
+              host:      ${{ secrets.DATABRICKS_HOST }}
+              http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
+              catalog:   ${{ secrets.LF_PROD_CATALOG }}
+              schema:    jaffle_shop
+              token:     ${{ secrets.DATABRICKS_TOKEN }}
+          PROFILEEOF
+      - id: sha
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      - run: liteflow run  --env uat
+      - run: liteflow test --env uat
+      - name: Tag deployment
+        run: |
+          git config user.email "liteflow-ci@github-actions"
+          git config user.name  "LiteFlow CI"
+          git tag -f "lf/uat/${{ steps.sha.outputs.sha }}"
+          git push -f origin "lf/uat/${{ steps.sha.outputs.sha }}"
