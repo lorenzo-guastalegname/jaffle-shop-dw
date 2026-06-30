@@ -31,48 +31,48 @@ jobs:
         run: |
           mkdir -p ~/.liteflow
           cat > ~/.liteflow/profiles.yml <<'PROFILEEOF'
-          my_project:
+          jaffle_shop:
             dev:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_DEV_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
             test:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_TEST_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
             devprj:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_DEVPRJ_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
             sit:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_SIT_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
             uat:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_UAT_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
             prod:
               adapter:   databricks
               host:      ${{ secrets.DATABRICKS_HOST }}
               http_path: ${{ secrets.DATABRICKS_HTTP_PATH }}
               catalog:   ${{ secrets.LF_PROD_CATALOG }}
-              schema:    my_project
+              schema:    jaffle_shop
               token:     ${{ secrets.DATABRICKS_TOKEN }}
           PROFILEEOF
       - id: sha
